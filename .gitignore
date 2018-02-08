@@ -4,9 +4,14 @@
 *.root
 *.pdf
 *.log
+*.pyc
 
 .*
 !.gitignore
+
+DoubleEG
+SingleMuon
+ZeroBias
 
 distributions
 make_ratios
