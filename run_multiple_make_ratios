@@ -2,4 +2,23 @@
 
 make "make_ratios" || exit 1
 
-./make_ratios "ZeroBias" ZeroBias/2017*/*/block* > /dev/null
+function RunOne
+{
+	local period="$1"
+	local stream="$2"
+
+	echo ""
+	echo ""
+	echo ">> $period/$stream"
+	./make_ratios "$period/config_base.py" "$period/$stream" $period/$stream/20*/*/block*
+}
+
+RunOne "2016_preTS2" "ZeroBias"
+
+RunOne "2016_postTS2" "ZeroBias"
+
+RunOne "2017_preTS2" "ZeroBias"
+
+RunOne "2017_postTS2" "ZeroBias"
+RunOne "2017_postTS2" "DoubleEG"
+RunOne "2017_postTS2" "SingleMuon"

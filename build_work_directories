@@ -12,7 +12,7 @@ function FlushBuffer()
 	local block_g
 	let block_g=block_idx/100
 
-	local dir="$base_dir/$dataset/${block_g}/block${block_idx}"
+	local dir="$base_dir/${block_g}/block${block_idx}"
 	mkdir -p "$dir"
 
 	echo "* $dir"
@@ -21,7 +21,15 @@ function FlushBuffer()
 	#		s|\$FILES|$buffer|;\
 	#	" > "$dir/input_files.h"
 
-	echo -e "$buffer" > "$dir/input_files"
+	(
+		echo "import FWCore.ParameterSet.Config as cms"
+		echo ""
+		echo "input_files = cms.vstring("
+		echo -e "$buffer"
+		echo ")"
+	) > "$dir/input_files.py"
+
+	cp "config_template.py" "$dir/config.py"
 }
 
 #----------------------------------------------------------------------------------------------------
@@ -40,11 +48,9 @@ function MakeFiles()
 	do
 		if [ -n "$buffer" ]
 		then
-			#buffer="$buffer,\n"
-			buffer="$buffer\n"
+			buffer="$buffer,\n"
 		fi
-		#buffer="$buffer\t\t\"root://cmsxrootd.fnal.gov//$file\""
-		buffer="${buffer}root://cmsxrootd.fnal.gov//$file"
+		buffer="$buffer\t\"root://cmsxrootd.fnal.gov//$file\""
 
 		let buffer_size+=1
 
@@ -71,16 +77,27 @@ function MakeFiles()
 #----------------------------------------------------------------------------------------------------
 
 # 2016, pre-TS2
-# TODO
+###   MakeFiles "2016_preTS2/ZeroBias/2016B" "file dataset=/ZeroBias/Run2016B-07Aug17_ver2-v1/AOD" &
+###   MakeFiles "2016_preTS2/ZeroBias/2016C" "file dataset=/ZeroBias/Run2016C-07Aug17-v1/AOD" &
+###   MakeFiles "2016_preTS2/ZeroBias/2016G" "file dataset=/ZeroBias/Run2016G-07Aug17-v1/AOD" &
+###   ###   
+###   ###   #MakeFiles "2016_preTS2/DoubleEG/2016B" "file dataset=/DoubleEG/Run2016B-07Aug17_ver2-v2/AOD" &
+###   ###   #MakeFiles "2016_preTS2/DoubleEG/2016C" "file dataset=/DoubleEG/Run2016C-07Aug17-v1/AOD" &
+###   ###   
+###   ###   #MakeFiles "2016_preTS2/SingleMuon/2016B" "file dataset=/SingleMuon/Run2016B-07Aug17_ver2-v1/AOD" &
+###   ###   #MakeFiles "2016_preTS2/SingleMuon/2016C" "file dataset=/SingleMuon/Run2016C-18Apr2017-v1/AOD" &
+###   
+###   # 2016, post-TS2
+###   MakeFiles "2016_postTS2/ZeroBias/2016H" "file dataset=/ZeroBias/Run2016H-07Aug17-v1/AOD" &
+###   
+###   # 2017, pre-TS2
+###   MakeFiles "2017_preTS2/ZeroBias/2017B" "file dataset=/ZeroBias/Run2017B-17Nov2017-v1/AOD" &
+###   MakeFiles "2017_preTS2/ZeroBias/2017C" "file dataset=/ZeroBias/Run2017C-17Nov2017-v1/AOD" &
+###   MakeFiles "2017_preTS2/ZeroBias/2017D" "file dataset=/ZeroBias/Run2017D-17Nov2017-v1/AOD" &
+###   
+###   # 2017, post-TS2
+###   MakeFiles "2017_postTS2/ZeroBias/2017E" "file dataset=/ZeroBias/Run2017E-17Nov2017-v1/AOD" &
+###   MakeFiles "2017_postTS2/ZeroBias/2017F" "file dataset=/ZeroBias/Run2017F-17Nov2017-v1/AOD" &
 
-# 2016, post-TS2
-MakeFiles "2016_postTS2/ZeroBias/2016H" "file dataset=/ZeroBias/Run2016H-07Aug17-v1/AOD" &
-
-# 2017, pre-TS2
-MakeFiles "2017_preTS2/ZeroBias/2017B" "file dataset=/ZeroBias/Run2017B-PromptReco-v1/AOD" &
-MakeFiles "2017_preTS2/ZeroBias/2017C" "file dataset=/ZeroBias/Run2017C-17Nov2017-v1/AOD" &
-MakeFiles "2017_preTS2/ZeroBias/2017D" "file dataset=/ZeroBias/Run2017D-17Nov2017-v1/AOD" &
-
-# 2017, post-TS2
-MakeFiles "2017_postTS2/ZeroBias/2017E" "file dataset=/ZeroBias/Run2017E-17Nov2017-v1/AOD" &
-MakeFiles "2017_postTS2/ZeroBias/2017F" "file dataset=/ZeroBias/Run2017F-17Nov2017-v1/AOD" &
+MakeFiles "2017_postTS2/DoubleEG/2017E" "file dataset=/DoubleEG/Run2017E-17Nov2017-v1/AOD" &
+MakeFiles "2017_postTS2/SingleMuon/2017E" "file dataset=/SingleMuon/Run2017E-17Nov2017-v1/AOD" &

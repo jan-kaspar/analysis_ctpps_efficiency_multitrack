@@ -11,9 +11,10 @@
 #include "DataFormats/CTPPSReco/interface/TotemRPUVPattern.h"
 #include "DataFormats/CTPPSReco/interface/TotemRPLocalTrack.h"
 
+#include "DataFormats/CTPPSReco/interface/CTPPSPixelRecHit.h"
 #include "DataFormats/CTPPSReco/interface/CTPPSPixelLocalTrack.h"
 
-#include "command_line_tools.h"
+#include "config.h"
 #include "data_formats.h"
 
 #include <vector>
@@ -24,97 +25,25 @@ using namespace edm;
 
 //----------------------------------------------------------------------------------------------------
 
-void PrintUsage()
+int main()
 {
-	printf("USAGE: distributions [option] [option] ...\n");
-	printf("OPTIONS:\n");
-	printf("    -input <file>      list of input ROOT file\n");
-	printf("    -output <file>     output file\n");
-}
-
-//----------------------------------------------------------------------------------------------------
-
-int main(int argc, const char **argv)
-{
-	// defaults
-	string input_file_name = "";
-	string output_file_name = "distributions.root";
-
-	// parse command line
-	for (int argi = 1; (argi < argc) && (cl_error == 0); ++argi)
-	{
-		if (strcmp(argv[argi], "-h") == 0 || strcmp(argv[argi], "--help") == 0)
-		{
-			cl_error = 1;
-			continue;
-		}
-
-		if (TestStringParameter(argc, argv, argi, "-input", input_file_name)) continue;
-
-		if (TestStringParameter(argc, argv, argi, "-output", output_file_name)) continue;
-
-		printf("ERROR: unknown option '%s'.\n", argv[argi]);
-		cl_error = 1;
-	}
-
-	if (cl_error)
-	{
-		PrintUsage();
-		return 1;
-	}
-
-	// print input
-	printf(">> input configuration\n");
-	printf("    input_file_name = %s\n", input_file_name.c_str());
-	printf("    output_file_name = %s\n", output_file_name.c_str());
-
-	// validate input
-	if (input_file_name.empty())
-	{
-		printf("ERROR: some required input not specified.\n");
-		PrintUsage();
-		return 2;
-	}
-
-	// load list of input files
-	FILE *f_in = fopen(input_file_name.c_str(), "r");
-
-	if (f_in == NULL)
-	{
-		printf("ERROR: can't open file '%s'.\n", input_file_name.c_str());
-		return 3;
-	}
-
-	printf(">> input files:\n");
-	vector<string> inputFiles;
-	while (!feof(f_in))
-	{
-		char line[500];
-		char *res = fgets(line, 499, f_in);
-
-		if (res == NULL)
-			break;
-
-		// remove end-line char
-		if (line[strlen(line)-1] == '\n')
-			line[strlen(line)-1] = 0;
-
-		inputFiles.push_back(line);
-
-		printf("    %s\n", line);
-	}	
-
-	fclose(f_in);
-
 	// start of code that may throw exceptions
 	try {
 
-	// initialise input collection
-	fwlite::ChainEvent ev(inputFiles);
-	printf("* events in input chain: %llu\n", ev.size());
+	// load config
+	if (cfg.LoadFrom("config.py") != 0)
+	{
+		printf("ERROR: cannot load config.\n");
+		return 1;
+	}
 
-	// ouput file
-	TFile *f_out = TFile::Open(output_file_name.c_str(), "recreate");
+	printf("-------------------- config ----------------------\n");
+	cfg.Print(true);
+	printf("--------------------------------------------------\n");
+
+	// initialise input collection
+	fwlite::ChainEvent ev(cfg.input_files);
+	printf("* events in input chain: %llu\n", ev.size());
 
 	// book output
 	map<unsigned int, map<RunLS, StripData> > stripDataCollection;
@@ -142,10 +71,6 @@ int main(int argc, const char **argv)
 
 		fwlite::Handle< DetSetVector<TotemRPLocalTrack> > hStripTracks;
 		hStripTracks.getByLabel(ev, "totemRPLocalTrackFitter");
-
-		// get pixel input data
-		fwlite::Handle< DetSetVector<CTPPSPixelLocalTrack> > hPixelTracks;
-		hPixelTracks.getByLabel(ev, "ctppsPixelLocalTracks");
 
 		// process strip input
 		struct StripInfo
@@ -278,18 +203,49 @@ int main(int argc, const char **argv)
 			if (destr_suff) data.n_destr_suff++;
 		}
 
+		// stop if pixels are not available
+		if (! cfg.pixelsAvailable)
+			continue;
+
+		// get pixel input data
+		fwlite::Handle< DetSetVector<CTPPSPixelRecHit> > hPixelRecHits;
+		hPixelRecHits.getByLabel(ev, "ctppsPixelRecHits");
+
+		fwlite::Handle< DetSetVector<CTPPSPixelLocalTrack> > hPixelTracks;
+		hPixelTracks.getByLabel(ev, "ctppsPixelLocalTracks");
+		
+		
+		// process strip input
+		struct PixelInfo
+		{
+			unsigned int n_recHits = 0;
+			unsigned int n_tracks = 0;
+		};
+
+		map<unsigned int, PixelInfo> pixelInfo;
+
+		for (const auto &dsHits : *hPixelRecHits)
+		{
+			CTPPSPixelDetId planeId(dsHits.detId());
+			unsigned int rpDecId = planeId.arm()*100 + planeId.station()*10 + planeId.rp();
+
+			pixelInfo[rpDecId].n_recHits += dsHits.size();
+		}
+
 		// process strip input
 		for (const auto &dsTracks : *hPixelTracks)
 		{
-			CTPPSDetId rpId(dsTracks.detId());
+			CTPPSPixelDetId rpId(dsTracks.detId());
 			unsigned int rpDecId = rpId.arm()*100 + rpId.station()*10 + rpId.rp();
 
-			unsigned int n_valid_tracks = 0;
-			for (const auto &tr : dsTracks)
-			{
-				if (tr.isValid())
-					n_valid_tracks++;
-			}
+			pixelInfo[rpDecId].n_tracks = dsTracks.size();
+		}
+
+		// increase pixel counters
+		for (const auto &p : pixelInfo)
+		{
+			const unsigned int &rpDecId = p.first;
+			const auto &info = p.second;
 
 			PixelData &data = pixelDataCollection[rpDecId][runLS];
 
@@ -298,8 +254,8 @@ int main(int argc, const char **argv)
 			
 			data.n_any++;
 
-			if (n_valid_tracks == 1) data.n_1_track++;
-			if (n_valid_tracks >= 1) data.n_at_least_1_track++;
+			if (info.n_tracks == 1) data.n_1_track++;
+			if (info.n_recHits > 20 || info.n_tracks >= 1) data.n_at_least_1_track++;
 		}
 	}
 
@@ -342,9 +298,6 @@ int main(int argc, const char **argv)
 
 		fclose(f);
 	}
-
-	// clean up
-	delete f_out;
 
 	// end of code that may throw exceptions
 	}

@@ -104,6 +104,7 @@ function ProcessOne()
 	rm -rf "$dir/$tag.root"
 	rm -rf "$dir/$tag.log"
 	rm -rf "$dir/$tag.job.log"
+	rm -rf $dir/*.out
 
 	# prepare job script
 	job_dir="`pwd -P`/$dir"

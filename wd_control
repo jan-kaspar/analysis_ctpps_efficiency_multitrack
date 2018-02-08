@@ -99,7 +99,7 @@ do
 	fi
 
 	# skip non-final directoris
-	if [ ! -f "$entry/input_files" ]
+	if [ ! -f "$entry/input_files.py" ]
 	then
 		continue
 	fi
