@@ -1,0 +1,5 @@
+#!/bin/bash
+
+make "make_ratios" || exit 1
+
+./make_ratios "ZeroBias" ZeroBias/2017*/*/block* > /dev/null

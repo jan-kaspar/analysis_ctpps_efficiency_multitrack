@@ -1,0 +1,12 @@
+*.swp
+*.swo
+
+*.root
+*.pdf
+*.log
+
+.*
+!.gitignore
+
+distributions
+make_ratios

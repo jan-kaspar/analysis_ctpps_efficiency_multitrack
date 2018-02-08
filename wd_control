@@ -1,0 +1,213 @@
+#!/bin/bash
+
+#----------------------------------------------------------------------------------------------------
+
+function PrintUsage()
+{
+	echo "USAGE: wd_control <option> <command> <option> ..."
+	echo "COMMANDS:"
+	echo "    print                   print directory name"
+	echo "    rm-root                 remove ROOT files"
+	echo "    resubmit                resubmit"
+	echo "    run                     run locally"
+	echo "    reset                   bring directory to the state before submission"
+	echo "OPTIONS:"
+	echo "    -h, --help              print this help and exit"
+	echo "    -s <selection>          set directory selection rule:"
+	echo "        finished            job has saved 'finished' file"
+	echo "        success             job has saved 'success' file"
+	echo "        crashed             job has saved 'finished' but no 'success' file"
+	echo "        unsubmitted         job has not saved 'submitted' file"
+	echo "        unfinished          job has 'submitted' file but not 'finished' file"
+	echo "        no-root             job has not any root file"
+	echo "    -queue <q>              use the specified LXBATCH queue"
+}
+
+#----------------------------------------------------------------------------------------------------
+
+# defaults
+selection=""
+comm=""
+
+queue="1nh"
+
+# parse command line
+while [ -n "$1" ]
+do
+	case "$1" in
+		"-h" | "--help")
+			PrintUsage
+			exit 0
+			;;
+
+        "-s")
+			shift
+            selection="$1"
+            ;;
+
+        "-queue")
+			shift
+            queue="$1"
+            ;;
+
+		"print" | "rm-root" | "resubmit" | "run" | "reset")
+			comm="$1"
+			;;
+         
+        *)
+			echo "ERROR: command/option '$1 not understood."
+			PrintUsage
+            exit 1
+	esac
+
+	shift
+done
+
+# command given?
+if [ -z "$comm" ]
+then
+	echo "ERROR: no command given"
+	PrintUsage
+	exit 1
+fi
+
+# selection given?
+if [ -z "$selection" ]
+then
+	echo "ERROR: no selection given"
+	PrintUsage
+	exit 1
+fi
+
+# validate selection
+case "$selection" in
+	"finished" | "success" | "crashed" | "unsubmitted" | "unfinished" | "no-root" | "root-too-small")
+		;;
+	*)
+		echo "ERROR: selection '$selection' not understood."
+		PrintUsage
+		exit 1
+esac
+
+# process all directory entries
+find . -type d|while read entry
+do
+	# skip non-directory entries
+	if [ ! -d "$entry" ]
+	then
+		continue
+	fi
+
+	# skip non-final directoris
+	if [ ! -f "$entry/input_files" ]
+	then
+		continue
+	fi
+
+	# is selected ?
+	selected="f"
+	case "$selection" in
+		"finished")
+				if [ -f "$entry/finished" ]
+				then
+					selected="t"
+				fi
+			;;
+
+		"success")
+				if [ -f "$entry/success" ]
+				then
+					selected="t"
+				fi
+			;;
+
+		"crashed")
+				if [ -f "$entry/finished" -a ! -f "$entry/success" ]
+				then
+					selected="t"
+				fi
+			;;
+
+		"unsubmitted")
+				if [ ! -f "$entry/submitted" ]
+				then
+					selected="t"
+				fi
+			;;
+
+		"unfinished")
+				if [ -f "$entry/submitted" -a ! -f "$entry/finished" ]
+				then
+					selected="t"
+				fi
+			;;
+
+		"no-root")
+				if [ ! -f "$entry/distributions.root" ]
+				then
+					selected="t"
+				fi
+			;;
+
+		"root-too-small")
+				if [ -f "$entry/distributions.root" ]
+				then
+					size=`wc -c <"$entry/distributions.root"`
+					if [ "$size" -lt "500" ]
+					then
+						selected="t"
+					fi
+				fi
+			;;
+	esac
+
+	# skip not selected
+	if [ "$selected" != "t" ]
+	then
+		continue
+	fi
+
+	# execute command
+	case "$comm" in
+		"print")
+				echo "$entry"
+			;;
+
+		"rm-root")
+				echo "deleting: $entry"
+				rm -rf $entry/*.root
+			;;
+
+		"resubmit")
+				echo "resubmitting: $entry"
+
+				cwd=`pwd -P`
+				result=`bsub -q "$queue" -o /dev/null -e /dev/null "$cwd/$entry/distributions.job"`
+				echo "    $result"
+				echo "$result" > "$entry/submitted"
+				rm -f "$entry/finished"
+				rm -f "$entry/success"
+			;;
+
+		"run")
+				echo "running: $entry"
+
+				rm -f "$entry/submitted"
+				rm -f "$entry/finished"
+				rm -f "$entry/success"
+
+				"$entry/distributions.job"
+			;;
+
+		"reset")
+				echo "resetting: $entry"
+
+				rm -f "$entry/submitted"
+				rm -f "$entry/finished"
+				rm -f "$entry/success"
+
+				rm -rf $entry/*.root
+				rm -rf $entry/*.log
+			;;
+	esac
+done

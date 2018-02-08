@@ -1,0 +1,22 @@
+#!/bin/sh
+
+export HOME="/afs/cern.ch/exp/totem/scratch/jkaspar"
+
+source "/cvmfs/cms.cern.ch/cmsset_default.sh"
+cd "$CMSSW_BASE/src"
+cmsenv
+
+# define directories
+job_dir="$JOB_DIR"
+
+(
+# run the process
+cd "$job_dir"
+
+touch "submitted"
+
+$COMMAND && touch "success"
+
+touch "finished"
+
+) &> "$job_dir/$JOB_LOG_FILE"

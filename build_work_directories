@@ -1,0 +1,86 @@
+#!/bin/bash
+
+files_per_block="20"
+
+#----------------------------------------------------------------------------------------------------
+
+function FlushBuffer()
+{
+	local buffer="$1"
+	local block_idx="$2"
+
+	local block_g
+	let block_g=block_idx/100
+
+	local dir="$base_dir/$dataset/${block_g}/block${block_idx}"
+	mkdir -p "$dir"
+
+	echo "* $dir"
+	
+	#cat "input_files_template.h" | sed "\
+	#		s|\$FILES|$buffer|;\
+	#	" > "$dir/input_files.h"
+
+	echo -e "$buffer" > "$dir/input_files"
+}
+
+#----------------------------------------------------------------------------------------------------
+
+function MakeFiles()
+{
+	base_dir="$1"
+	query="$2"
+
+	buffer=""
+	buffer_size="0"
+
+	block_idx="0"
+
+	for file in `dasgoclient --query "$query"|grep store`
+	do
+		if [ -n "$buffer" ]
+		then
+			#buffer="$buffer,\n"
+			buffer="$buffer\n"
+		fi
+		#buffer="$buffer\t\t\"root://cmsxrootd.fnal.gov//$file\""
+		buffer="${buffer}root://cmsxrootd.fnal.gov//$file"
+
+		let buffer_size+=1
+
+		if [ "$buffer_size" -ge "$files_per_block" ]
+		then
+			FlushBuffer "$buffer" "$block_idx"
+	
+			buffer=""
+			let buffer_size=0
+			let block_idx+=1
+		fi
+	done
+
+	if [ "$buffer_size" -gt "0" ]
+	then
+		FlushBuffer "$buffer" "$block_idx"
+	
+		buffer=""
+		let buffer_size=0
+		let block_idx+=1
+	fi
+}
+
+#----------------------------------------------------------------------------------------------------
+
+# 2016, pre-TS2
+# TODO
+
+# 2016, post-TS2
+MakeFiles "2016_postTS2/ZeroBias/2016H" "file dataset=/ZeroBias/Run2016H-07Aug17-v1/AOD" &
+
+# 2017, pre-TS2
+MakeFiles "2017_preTS2/ZeroBias/2017B" "file dataset=/ZeroBias/Run2017B-PromptReco-v1/AOD" &
+MakeFiles "2017_preTS2/ZeroBias/2017C" "file dataset=/ZeroBias/Run2017C-17Nov2017-v1/AOD" &
+MakeFiles "2017_preTS2/ZeroBias/2017D" "file dataset=/ZeroBias/Run2017D-17Nov2017-v1/AOD" &
+
+# 2017, post-TS2
+MakeFiles "2017_postTS2/ZeroBias/2017E" "file dataset=/ZeroBias/Run2017E-17Nov2017-v1/AOD" &
+MakeFiles "2017_postTS2/ZeroBias/2017F" "file dataset=/ZeroBias/Run2017F-17Nov2017-v1/AOD" &

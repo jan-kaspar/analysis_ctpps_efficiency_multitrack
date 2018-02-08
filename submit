@@ -1,0 +1,147 @@
+#!/bin/bash
+
+#----------------------------------------------------------------------------------------------------
+
+# defaults
+run="n"
+submit="n"
+
+directories=()
+
+#batch_queue="8nm"
+batch_queue="8nh"
+
+batch_resources=""
+
+batch_options="-o /dev/null -e /dev/null"
+
+#----------------------------------------------------------------------------------------------------
+
+function PrintUsage()
+{
+	echo "USAGE: $0 <option> <dir> <dir> <option> ..."
+	echo "OPTIONS:"
+	echo "    -p <program>      select which program to run"
+	echo "    -run              excecute locally in background (default: $run)"
+	echo "    -submit           submit to LXBATCH (default: $submit)"
+	echo "    -queue <string>   select LXBATCH queue (default: $batch_queue)"
+}
+
+#----------------------------------------------------------------------------------------------------
+
+# process command line arguments
+while [ -n "$1" ]
+do
+	case "$1" in
+		"--help" | "-h")
+			PrintUsage
+			exit
+		;;
+
+		"-p" | "-program")
+			shift
+			program="$1"
+		;;
+
+		"-run")
+			run="y"
+		;;
+
+		"-submit")
+			submit="y"
+		;;
+
+		"-queue")
+			shift
+			batch_queue="$1"
+		;;
+
+		-*)
+			echo "ERROR: option '$1' not understood"
+			PrintUsage
+			exit 1
+		;;
+
+		*)
+			if [ ! -d "$1" ]
+			then
+				echo "ERROR: '$1' is not a directory."
+				PrintUsage
+				exit 3
+			fi
+
+			directories+=("$1")
+		;;
+	esac
+
+	shift
+done
+
+# validate input
+if [ ! -f "$program" ]
+then
+	echo "ERROR: '$program' is not a file."
+	PrintUsage
+	exit 2
+fi
+
+#----------------------------------------------------------------------------------------------------
+
+tag="${program%.*}"
+make "$tag" || exit 10
+
+
+#----------------------------------------------------------------------------------------------------
+
+function ProcessOne()
+{
+	echo "* $dir"
+
+	# clean directory
+	rm -rf "$dir/submitted"
+	rm -rf "$dir/finished"
+	rm -rf "$dir/success"
+	rm -rf "$dir/$tag.root"
+	rm -rf "$dir/$tag.log"
+	rm -rf "$dir/$tag.job.log"
+
+	# prepare job script
+	job_dir="`pwd -P`/$dir"
+	comm="`pwd -P`/$tag"
+
+	cat "job_template" | sed "\
+			s|\$CMSSW_BASE|$CMSSW_BASE|; \
+			s|\$JOB_DIR|$job_dir|; \
+			s|\$COMMAND|$comm -input \"input_files\" \\&> \"$tag.log\"|; \
+			s|\$JOB_LOG_FILE|$tag.job.log|; \
+		" > "$dir/$tag.job"
+
+	chmod u+x "$dir/$tag.job"
+
+	# make verification script
+	#cat "CheckRootFile_template" | sed "\
+	#		s|\$file|$tag.root|;\
+	#	" > "$dir/CheckRootFile.cc"
+
+	# execute if specified
+	if [ "$run" == "y" ]
+	then
+		"$dir/$tag.job" &
+	fi
+
+	# submit if specified
+	if [ "$submit" == "y" ]
+	then
+		"$dir/$tag.job" &
+		bsub -q "$batch_queue" -R "$batch_resources" $batch_options "$job_dir/$tag.job"
+	fi
+}
+
+#----------------------------------------------------------------------------------------------------
+
+# process all input
+
+for dir in ${directories[@]}
+do
+	ProcessOne
+done
