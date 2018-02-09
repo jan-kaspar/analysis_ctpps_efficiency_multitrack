@@ -3,6 +3,7 @@
 
 #include "TFile.h"
 #include "TGraphErrors.h"
+#include "TProfile.h"
 
 #include <vector>
 #include <string>
@@ -46,6 +47,9 @@ int main(int argc, const char **argv)
 	//printf("--------------------------------------------------\n");
 
 	printf("* inputDirs: %lu\n", inputDirs.size());
+
+	// settings
+	unsigned int period_length = 30 * 60;	// s
 
 	// book data structures
 	map<unsigned int, map<RunLS, StripData>> stripDataCollection;
@@ -92,12 +96,19 @@ int main(int argc, const char **argv)
 		TGraphErrors *g_eff_pat_suff_or_tooFull_vs_run = new TGraphErrors();
 		g_eff_pat_suff_or_tooFull_vs_run->SetName("g_eff_pat_suff_or_tooFull_vs_run");
 
+		unsigned int timestamp_min_eff = cfg.timestamp_min;
+		unsigned int timestamp_bins = ceil((cfg.timestamp_max - cfg.timestamp_min) / period_length);
+		unsigned int timestamp_max_eff = cfg.timestamp_min + timestamp_bins * period_length;
+
+		TProfile *p_eff_pat_suff_or_tooFull_vs_time = new TProfile("p_eff_pat_suff_or_tooFull_vs_time", ";timestamp",
+				timestamp_bins, timestamp_min_eff, timestamp_max_eff);
+
 		for (const auto &p : rpp.second)
 		{
 			const auto &data = p.second;
 
 			// cut off low statistics bins
-			if (data.n_pat_suff_or_tooFull < 1000)
+			if (data.n_pat_suff_or_tooFull < 100)
 				continue;
 
 			double time = (data.timestamp_max + data.timestamp_min) / 2.;
@@ -114,10 +125,13 @@ int main(int argc, const char **argv)
 
 			g_eff_pat_suff_or_tooFull_vs_run->SetPoint(idx, x_run, eff_pat_suff_or_tooFull);
 			g_eff_pat_suff_or_tooFull_vs_run->SetPointError(idx, 0., eff_pat_suff_or_tooFull_unc);
+
+			p_eff_pat_suff_or_tooFull_vs_time->Fill(time, eff_pat_suff_or_tooFull);
 		}
 
 		g_eff_pat_suff_or_tooFull_vs_time->Write();
 		g_eff_pat_suff_or_tooFull_vs_run->Write();
+		p_eff_pat_suff_or_tooFull_vs_time->Write();
 	}
 
 	// process pixel data
@@ -136,12 +150,19 @@ int main(int argc, const char **argv)
 		TGraphErrors *g_single_track_ratio_vs_run = new TGraphErrors();
 		g_single_track_ratio_vs_run->SetName("g_single_track_ratio_vs_run");
 
+		unsigned int timestamp_min_eff = cfg.timestamp_min;
+		unsigned int timestamp_bins = ceil((cfg.timestamp_max - cfg.timestamp_min) / period_length);
+		unsigned int timestamp_max_eff = cfg.timestamp_min + timestamp_bins * period_length;
+
+		TProfile *p_single_track_ratio_vs_time = new TProfile("p_single_track_ratio_vs_time", ";timestamp",
+				timestamp_bins, timestamp_min_eff, timestamp_max_eff);
+
 		for (const auto &p : rpp.second)
 		{
 			const auto &data = p.second;
 
 			// cut off low statistics bins
-			if (data.n_at_least_1_track < 1000)
+			if (data.n_at_least_1_track < 100)
 				continue;
 
 			double time = (data.timestamp_max + data.timestamp_min) / 2.;
@@ -158,10 +179,14 @@ int main(int argc, const char **argv)
 
 			g_single_track_ratio_vs_run->SetPoint(idx, x_run, single_track_ratio);
 			g_single_track_ratio_vs_run->SetPointError(idx, 0., single_track_ratio_unc);
+
+			p_single_track_ratio_vs_time->Fill(time, single_track_ratio);
 		}
 
 		g_single_track_ratio_vs_time->Write();
 		g_single_track_ratio_vs_run->Write();
+
+		p_single_track_ratio_vs_time->Write();
 	}
 
 	// clean up
