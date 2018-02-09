@@ -19,7 +19,7 @@ string stream = "ZeroBias";
 
 string quantity = "p_eff_pat_suff_or_tooFull_vs_time";
 
-xSizeDef = 20cm;
+xSizeDef = 25cm;
 
 //----------------------------------------------------------------------------------------------------
 

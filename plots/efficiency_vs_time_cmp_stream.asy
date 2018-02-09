@@ -20,7 +20,7 @@ rps.push("103"); rp_labels.push("56-210-fr-hr");
 
 string streams[];
 pen s_pens[];
-streams.push("ZeroBias"); s_pens.push(red);
+streams.push("ZeroBias"); s_pens.push(red+0.8pt);
 streams.push("DoubleEG"); s_pens.push(blue);
 streams.push("SingleMuon"); s_pens.push(heavygreen);
 
@@ -30,24 +30,16 @@ xSizeDef = 12cm;
 
 //----------------------------------------------------------------------------------------------------
 
-NewPad();
-
-for (int rpi : rps.keys)
-{
-	NewPad(false);
-	label("{\SetFontSizesXX " + rp_labels[rpi] + "}");
-}
-
 for (int pi : periods.keys)
 {
 	NewRow();
 
-	NewPad(false);
-	label("{\SetFontSizesXX " + replace(periods[pi], "_", "\_") + "}");
-
 	for (int rpi : rps.keys)
 	{
 		NewPad("days from 1 Jan 2016", "efficiency");
+
+		AddToLegend("(" + replace(periods[pi], "_", "\_") + ")");
+		AddToLegend("(" + rp_labels[rpi] + ")");
 
 		TGraph_x_min = timestamp0 + 24*3600*p_x_mins[pi];
 		TGraph_x_max = timestamp0 + 24*3600*p_x_maxs[pi];
@@ -58,18 +50,15 @@ for (int pi : periods.keys)
 
 			RootObject obj = RootGetObject(f, rps[rpi] + "/" + quantity, error=false);
 			if (obj.valid)
-				draw(scale(1./24/3600, 1.) * shift(-timestamp0), obj, "d0,vl,eb", s_pens[sti]);
+				draw(scale(1./24/3600, 1.) * shift(-timestamp0), obj, "d0,vl,eb", s_pens[sti], streams[sti]);
 		}
 		
 		limits((p_x_mins[pi], 0.3), (p_x_maxs[pi], 0.7), Crop);
+
+		AttachLegend(NW, NE);
 	}
 }
 
 //----------------------------------------------------------------------------------------------------
-
-NewPad(false);
-for (int sti : streams.keys)
-	AddToLegend(streams[sti], s_pens[sti]);
-AttachLegend();
 
 GShipout(hSkip=2mm, vSkip=0mm);
