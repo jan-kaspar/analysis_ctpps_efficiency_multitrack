@@ -103,6 +103,9 @@ int main(int argc, const char **argv)
 		TProfile *p_eff_pat_suff_or_tooFull_vs_time = new TProfile("p_eff_pat_suff_or_tooFull_vs_time", ";timestamp",
 				timestamp_bins, timestamp_min_eff, timestamp_max_eff);
 
+		sprintf(buf, "%s/efficiency_%u.csv", outputDir.c_str(), rpp.first);
+		FILE *f_csv = fopen(buf, "w");
+
 		for (const auto &p : rpp.second)
 		{
 			const auto &data = p.second;
@@ -127,11 +130,16 @@ int main(int argc, const char **argv)
 			g_eff_pat_suff_or_tooFull_vs_run->SetPointError(idx, 0., eff_pat_suff_or_tooFull_unc);
 
 			p_eff_pat_suff_or_tooFull_vs_time->Fill(time, eff_pat_suff_or_tooFull);
+
+			fprintf(f_csv, "%u,%u,%u,%u,%.4f,%.4f\n", p.first.run, p.first.ls,
+				data.timestamp_min, data.timestamp_max, eff_pat_suff_or_tooFull, eff_pat_suff_or_tooFull_unc);
 		}
 
 		g_eff_pat_suff_or_tooFull_vs_time->Write();
 		g_eff_pat_suff_or_tooFull_vs_run->Write();
 		p_eff_pat_suff_or_tooFull_vs_time->Write();
+
+		fclose(f_csv);
 	}
 
 	// process pixel data
