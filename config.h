@@ -15,6 +15,8 @@ struct Config
 {
 	vector<string> input_files;
 
+	unsigned int timestamp_min, timestamp_max;
+
 	bool pixelsAvailable;
 
 	vector<unsigned int> stripRPIds;
@@ -32,6 +34,9 @@ int Config::LoadFrom(const string &f_in)
 	const edm::ParameterSet& config = edm::readPSetsFrom(f_in)->getParameter<edm::ParameterSet>("config");
 
 	input_files = config.getParameter<vector<string>>("input_files");
+
+	timestamp_min = config.getParameter<unsigned int>("timestamp_min");
+	timestamp_max = config.getParameter<unsigned int>("timestamp_max");
 
 	pixelsAvailable = config.getParameter<bool>("pixelsAvailable");
 
