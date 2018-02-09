@@ -1,0 +1,23 @@
+#!/bin/bash
+
+tmp_dir="/tmp/export"
+
+rm -rf "$tmp_dir"
+
+mkdir "$tmp_dir"
+
+for f in */*/*.csv
+do
+	echo $f
+
+	period=${f%%/*}
+	rest=${f#*/}
+	stream=${rest%%/*}
+	rest=${rest#*/}
+	rp=${rest#efficiency_}
+	rp=${rp%.*}
+
+	cp "$f" "$tmp_dir/${period}_${stream}_${rp}.csv"
+done
+
+GZIP=-9 tar czvf "export_results.tar.gz" -C "$tmp_dir" .
