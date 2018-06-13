@@ -2,7 +2,7 @@
 
 cwd=`pwd`
 
-cd "/afs/cern.ch/work/j/jkaspar/software/ctpps/production/CMSSW_9_4_0_pre2"
+cd "/afs/cern.ch/work/j/jkaspar/software/ctpps/production/CMSSW_9_4_0"
 source environment
 
 compName=$(uname -n)
