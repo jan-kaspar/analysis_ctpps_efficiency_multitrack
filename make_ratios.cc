@@ -4,6 +4,7 @@
 #include "TFile.h"
 #include "TGraphErrors.h"
 #include "TProfile.h"
+#include "TH2D.h"
 
 #include <vector>
 #include <string>
@@ -51,6 +52,10 @@ int main(int argc, const char **argv)
 	// settings
 	unsigned int period_length = 30 * 60;	// s
 
+	unsigned int timestamp_min_eff = cfg.timestamp_min;
+	unsigned int timestamp_bins = ceil((cfg.timestamp_max - cfg.timestamp_min) / period_length);
+	unsigned int timestamp_max_eff = cfg.timestamp_min + timestamp_bins * period_length;
+
 	// book data structures
 	map<unsigned int, map<RunLS, StripData>> stripDataCollection;
 	map<unsigned int, map<RunLS, PixelData>> pixelDataCollection;
@@ -77,8 +82,28 @@ int main(int argc, const char **argv)
 		}
 	}
 
+	// get pileup data
+	TFile *f_in_pu = TFile::Open("/afs/cern.ch/work/j/jkaspar/analyses/ctpps/efficiency_multitrack/pile_up/pileup.root");
+	TGraph *g_pileup_vs_time = (TGraph *) f_in_pu->Get("g_pileup_vs_time");
+
 	// prepare output file
 	TFile *f_out = TFile::Open((outputDir + "/make_ratios.root").c_str(), "recreate");
+
+	// process pileup data
+	TProfile *p_pileup_vs_time = new TProfile("p_pileup_vs_time", ";timestamp", timestamp_bins, timestamp_min_eff, timestamp_max_eff);
+	for (int i = 0; i < g_pileup_vs_time->GetN(); ++i)
+		p_pileup_vs_time->Fill(g_pileup_vs_time->GetX()[i], g_pileup_vs_time->GetY()[i]);
+
+	for (int bi = 1; bi <= p_pileup_vs_time->GetNbinsX(); ++bi)
+	{
+		if (p_pileup_vs_time->GetBinError(bi) > 0.1)
+		{
+			p_pileup_vs_time->SetBinContent(bi, 0.);
+			p_pileup_vs_time->SetBinError(bi, 0.);
+		}
+	}
+
+	p_pileup_vs_time->Write();
 
 	// process strip data
 	printf("* processing strip data\n");
@@ -95,10 +120,6 @@ int main(int argc, const char **argv)
 
 		TGraphErrors *g_eff_pat_suff_or_tooFull_vs_run = new TGraphErrors();
 		g_eff_pat_suff_or_tooFull_vs_run->SetName("g_eff_pat_suff_or_tooFull_vs_run");
-
-		unsigned int timestamp_min_eff = cfg.timestamp_min;
-		unsigned int timestamp_bins = ceil((cfg.timestamp_max - cfg.timestamp_min) / period_length);
-		unsigned int timestamp_max_eff = cfg.timestamp_min + timestamp_bins * period_length;
 
 		TProfile *p_eff_pat_suff_or_tooFull_vs_time = new TProfile("p_eff_pat_suff_or_tooFull_vs_time", ";timestamp",
 				timestamp_bins, timestamp_min_eff, timestamp_max_eff);
@@ -135,9 +156,22 @@ int main(int argc, const char **argv)
 				data.timestamp_min, data.timestamp_max, eff_pat_suff_or_tooFull, eff_pat_suff_or_tooFull_unc);
 		}
 
+		TH2D *h2_eff_vs_pileup = new TH2D("h2_eff_vs_pileup", ";pileup;efficiency", 100, 10., 60., 100, 0.3, 0.9);
+
+		for (int bi = 1; bi <= p_eff_pat_suff_or_tooFull_vs_time->GetNbinsX(); ++bi)
+		{
+			double eff = p_eff_pat_suff_or_tooFull_vs_time->GetBinContent(bi);
+			double pileup = p_pileup_vs_time->GetBinContent(bi);
+
+			if (eff > 0. && pileup > 0.)
+				h2_eff_vs_pileup->Fill(pileup, eff);
+		}
+
 		g_eff_pat_suff_or_tooFull_vs_time->Write();
 		g_eff_pat_suff_or_tooFull_vs_run->Write();
 		p_eff_pat_suff_or_tooFull_vs_time->Write();
+
+		h2_eff_vs_pileup->Write();
 
 		fclose(f_csv);
 	}
@@ -199,6 +233,7 @@ int main(int argc, const char **argv)
 
 	// clean up
 	delete f_out;
+	delete f_in_pu;
 
 	return 0;
 }
