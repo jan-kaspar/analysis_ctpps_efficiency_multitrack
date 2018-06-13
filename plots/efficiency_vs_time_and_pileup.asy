@@ -23,18 +23,18 @@ xSizeDef = 25cm;
 
 //----------------------------------------------------------------------------------------------------
 
+TH1_x_min = timestamp0 + 24*3600*x_min;
+TH1_x_max = timestamp0 + 24*3600*x_max;
+
 for (int rpi : rps.keys)
 {
 	NewPad("days from 1 Jan 2016", "efficiency");
-
-	TGraph_x_min = timestamp0 + 24*3600*x_min;
-	TGraph_x_max = timestamp0 + 24*3600*x_max;
 
 	string f = topDir + period + "/" + stream + "/make_ratios.root";
 
 	RootObject obj = RootGetObject(f, rps[rpi] + "/" + quantity, error=false);
 	if (obj.valid)
-		draw(scale(1./24/3600, 1.) * shift(-timestamp0), obj, "d0,vl,eb", red, stream);
+		draw(scale(1./24/3600, 1.) * shift(-timestamp0), obj, "d0,vl,eb", red+1pt, stream);
 	
 	limits((x_min, 0.3), (x_max, 0.9), Crop);
 
@@ -45,12 +45,12 @@ for (int rpi : rps.keys)
 
 NewRow();
 
-TGraph_x_min = 24*x_min;
-TGraph_x_max = 24*x_max;
 
 NewPad("days from 1 Jan 2016", "pile-up");
-TGraph_reducePoints = 10;
-draw(scale(1./24, 1.), RootGetObject(topDir + "pile_up/pileup.root", "g_pileup_vs_hour"), "d", blue);
+
+string f = topDir + period + "/" + stream + "/make_ratios.root";
+
+draw(scale(1./24/3600, 1.) * shift(-timestamp0), RootGetObject(f, "p_pileup_vs_time"), "d0,eb,vl", blue+1pt);
 
 limits((x_min, 0.), (x_max, 60.), Crop);
 
