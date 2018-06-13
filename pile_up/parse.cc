@@ -10,15 +10,10 @@ using namespace std;
 
 //----------------------------------------------------------------------------------------------------
 
-int main()
+void ParseOne(const string &fileName, TGraph *g_pileup_vs_day)
 {
 	// open files
-	FILE *f_in = fopen("brilcalc_2016.csv", "r");
-
-	TFile *f_out = TFile::Open("pileup.root", "recreate");
-
-	// parse file
-	TGraph *g_pileup_vs_hour = new TGraph(); g_pileup_vs_hour->SetName("g_pileup_vs_hour");
+	FILE *f_in = fopen(fileName.c_str(), "r");
 
 	while (!feof(f_in))
 	{
@@ -64,19 +59,36 @@ int main()
 
 		unsigned int timestamp0 = 1451602800; // 1 Jan 2016 in UNIX time
 		unsigned int timestamp = t - timestamp0;
-		double hour = double(timestamp) / 3600.;
+		double day = double(timestamp) / 3600. / 24.;
 
 		//printf("%s --> %s\n", s_date.c_str(), s_pu.c_str());
 		//printf("    %u\n", (unsigned int)t);
 
-		int g_idx = g_pileup_vs_hour->GetN();
-		g_pileup_vs_hour->SetPoint(g_idx, hour, pu);
+		int g_idx = g_pileup_vs_day->GetN();
+		g_pileup_vs_day->SetPoint(g_idx, day, pu);
 	}
-
-	g_pileup_vs_hour->Write();
 
 	// clean up
 	fclose(f_in);
+}
+
+//----------------------------------------------------------------------------------------------------
+
+int main()
+{
+	// prepare output
+	TFile *f_out = TFile::Open("pileup.root", "recreate");
+
+	TGraph *g_pileup_vs_day = new TGraph(); g_pileup_vs_day->SetName("g_pileup_vs_day");
+
+	// parse input
+	ParseOne("brilcalc_2016.csv", g_pileup_vs_day);
+	ParseOne("brilcalc_2017.csv", g_pileup_vs_day);
+
+	// save output
+	g_pileup_vs_day->Write();
+
+	// clean up
 	delete f_out;
 
 	return 0;
